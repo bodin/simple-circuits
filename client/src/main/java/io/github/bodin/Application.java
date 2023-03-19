@@ -27,7 +27,6 @@ import static org.springframework.web.servlet.function.ServerResponse.ok;
 @SpringBootApplication
 @EnableScheduling
 public class Application {
-    private static final Logger log = LoggerFactory.getLogger(Application.class);;
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
     }
@@ -44,7 +43,6 @@ public class Application {
 
     @Bean
     public RouterFunction<ServerResponse> endpoints() {
-        final Set<String> openCircuits = Collections.synchronizedSet(new HashSet<>());
         return RouterFunctions.route()
                 .GET("/hello", req ->
                         ok().body(TestCircuit
