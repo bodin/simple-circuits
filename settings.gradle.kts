@@ -10,3 +10,4 @@
 rootProject.name = "simple-circuits"
 include("lib")
 include("service")
+include("client")
