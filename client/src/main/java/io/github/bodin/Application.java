@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 import static org.springframework.web.servlet.function.ServerResponse.ok;
 
 @SpringBootApplication
-@EnableScheduling
 public class Application {
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
