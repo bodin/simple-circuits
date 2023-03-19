@@ -1,7 +1,6 @@
 package io.github.bodin;
 
-import io.github.bodin.annotation.Circuit;
-import org.slf4j.ILoggerFactory;
+import io.github.bodin.annotation.CircuitDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanClassLoaderAware;
@@ -12,26 +11,47 @@ import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.context.annotation.*;
-import org.springframework.core.env.Environment;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.util.ClassUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 @Import(CircuitConfiguration.CircuitProxyRegistrar.class)
+@EnableScheduling
 public class CircuitConfiguration {
     private final static Logger log = LoggerFactory.getLogger("mckesson.config.feature");
+
+    @Autowired @Lazy
+    DynamicCircuitService circuitService;
+
+    @Bean
+    public DynamicCircuitService circuitService(){
+        return new DynamicCircuitService();
+    }
+
+    @Scheduled(fixedRate = 10, timeUnit = TimeUnit.SECONDS)
+    public void getProperties(){
+        RestTemplate rest = new RestTemplate();
+        List<String> circuits =
+                rest.getForEntity("http://localhost:8181/circuits", List.class)
+                        .getBody();
+        log.info("Updating State: {}", circuits);
+        circuitService.reset(circuits);
+    }
 
     @Bean(name = "circuitProxyFactory")
     public CircuitProxyBeanFactory circuitProxyFactory() {
         return new CircuitProxyBeanFactory();
     }
-
 
     public static class ClassPathScanner extends ClassPathScanningCandidateComponentProvider {
 
@@ -52,7 +72,7 @@ public class CircuitConfiguration {
 
         public CircuitProxyRegistrar() {
             classpathScanner = new ClassPathScanner(false);
-            classpathScanner.addIncludeFilter(new AnnotationTypeFilter(io.github.bodin.annotation.Circuit.class));
+            classpathScanner.addIncludeFilter(new AnnotationTypeFilter(CircuitDefinition.class));
         }
 
         @Override
@@ -66,7 +86,7 @@ public class CircuitConfiguration {
                 for (BeanDefinition beanDefinition : classpathScanner.findCandidateComponents("")) {
 
                     Class<?> clazz = Class.forName(beanDefinition.getBeanClassName());
-                    io.github.bodin.annotation.Circuit c = clazz.getAnnotation(io.github.bodin.annotation.Circuit.class);
+                    CircuitDefinition c = clazz.getAnnotation(CircuitDefinition.class);
                     String beanName = ClassUtils.getShortNameAsProperty(clazz);
 
                     GenericBeanDefinition proxy = new GenericBeanDefinition();
@@ -80,7 +100,7 @@ public class CircuitConfiguration {
                     proxy.setFactoryBeanName("circuitProxyFactory");
                     proxy.setFactoryMethodName("createCircuitProxy");
 
-                    log.info("[CIRCUIT] BEAN {} {}", beanName, Arrays.asList(c.value()));
+                    log.info("[CIRCUIT] BEAN {} {}", beanName, c.value());
 
                     registry.registerBeanDefinition(beanName, proxy);
                 }
@@ -92,9 +112,9 @@ public class CircuitConfiguration {
 
     public static class CircuitProxy implements InvocationHandler {
 
-        private final io.github.bodin.Circuit circuit;
+        private final Circuit circuit;
 
-        public CircuitProxy(io.github.bodin.Circuit circuit) {
+        public CircuitProxy(Circuit circuit) {
             this.circuit = circuit;
         }
 
@@ -111,8 +131,8 @@ public class CircuitConfiguration {
 
         @SuppressWarnings("unchecked")
         public <WS> WS createCircuitProxy(ClassLoader classLoader, Class<WS> clazz) {
-            String circuitName = clazz.getAnnotation(Circuit.class).value();
-            io.github.bodin.Circuit circuit = service.create(circuitName);
+            String circuitName = clazz.getAnnotation(CircuitDefinition.class).value();
+            Circuit circuit = service.create(circuitName);
             return (WS) Proxy.newProxyInstance(classLoader, new Class[]{clazz}, new CircuitProxy(circuit));
         }
     }

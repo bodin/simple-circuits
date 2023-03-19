@@ -3,7 +3,7 @@
  */
 package io.github.bodin;
 
-import io.github.bodin.annotation.Circuit;
+import io.github.bodin.annotation.CircuitDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,41 +32,24 @@ public class Application {
         SpringApplication.run(Application.class, args);
     }
 
-    @Bean
-    public DynamicCircuitService circuitService(){
-        return new DynamicCircuitService();
-    }
-
-    @Autowired @Lazy
-    DynamicCircuitService circuitService;
-
-    @Scheduled(fixedRate = 10, timeUnit = TimeUnit.SECONDS)
-    public void getProperties(){
-        RestTemplate rest = new RestTemplate();
-        List<String> circuits =
-                rest.getForEntity("http://localhost:8181/circuits", List.class)
-                .getBody();
-        log.info("Updating State: {}", circuits);
-        circuitService.reset(circuits);
-    }
 
     @Configuration
     public static class Circuits {
-        @Circuit("test-circuit")
-        interface TestCircuit extends io.github.bodin.Circuit {}
+        @CircuitDefinition("test-circuit")
+        interface TestCircuit extends Circuit {}
     }
-
 
     @Autowired @Lazy
     Circuits.TestCircuit TestCircuit;
-
 
     @Bean
     public RouterFunction<ServerResponse> endpoints() {
         final Set<String> openCircuits = Collections.synchronizedSet(new HashSet<>());
         return RouterFunctions.route()
                 .GET("/hello", req ->
-                        ok().body(TestCircuit.isOpen() ? "TestCircuit: open" : "TestCircuit: closed")
+                        ok().body(TestCircuit
+                                .supply(() -> "Test Circuit Is: Closed")
+                                .orElse("Test Circuit Is: Open"))
                 )
             .build();
     }
