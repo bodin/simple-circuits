@@ -5,6 +5,9 @@ package io.github.bodin;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,17 +19,17 @@ class DynamicCircuitTest {
         assertFalse(service.isOpen("dynamic-circuit"));
         assertFalse(dynamicCircuit.isOpen());
 
-        service.open("foo");
+        service.reset(List.of("foo"));
 
         assertFalse(service.isOpen("dynamic-circuit"));
         assertFalse(dynamicCircuit.isOpen());
 
-        service.open("dynamic-circuit");
+        service.reset(Arrays.asList("foo", "dynamic-circuit"));
 
         assertTrue(service.isOpen("dynamic-circuit"));
         assertTrue(dynamicCircuit.isOpen());
 
-        service.close("dynamic-circuit");
+        service.reset(List.of("foo"));
 
         assertFalse(service.isOpen("dynamic-circuit"));
         assertFalse(dynamicCircuit.isOpen());

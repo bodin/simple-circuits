@@ -1,5 +1,8 @@
-package io.github.bodin;
+package io.github.bodin.config;
 
+import io.github.bodin.Circuit;
+import io.github.bodin.CircuitService;
+import io.github.bodin.DynamicCircuitService;
 import io.github.bodin.annotation.CircuitDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +24,7 @@ import org.springframework.web.client.RestTemplate;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -28,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 @Import(CircuitConfiguration.CircuitProxyRegistrar.class)
 @EnableScheduling
 public class CircuitConfiguration {
-    private final static Logger log = LoggerFactory.getLogger("mckesson.config.feature");
+    private final static Logger log = LoggerFactory.getLogger("audit.circuit");
 
     @Autowired @Lazy
     DynamicCircuitService circuitService;
@@ -38,14 +42,21 @@ public class CircuitConfiguration {
         return new DynamicCircuitService();
     }
 
+    private static final class StringList extends ArrayList<String>{}
+
     @Scheduled(fixedRate = 10, timeUnit = TimeUnit.SECONDS)
     public void getProperties(){
         RestTemplate rest = new RestTemplate();
-        List<String> circuits =
-                rest.getForEntity("http://localhost:8181/circuits", List.class)
-                        .getBody();
-        log.info("Updating State: {}", circuits);
-        circuitService.reset(circuits);
+        try {
+            List<String> circuits = rest
+                    .getForEntity("http://localhost:8181/circuits", StringList.class)
+                    .getBody();
+
+            log.info("Updating State: {}", circuits);
+            circuitService.reset(circuits);
+        }catch(Exception e){
+            log.warn("Failed to get circuits");
+        }
     }
 
     @Bean(name = "circuitProxyFactory")

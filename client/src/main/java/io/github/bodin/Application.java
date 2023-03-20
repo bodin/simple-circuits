@@ -4,23 +4,15 @@
 package io.github.bodin;
 
 import io.github.bodin.annotation.CircuitDefinition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.RouterFunctions;
 import org.springframework.web.servlet.function.ServerResponse;
-
-import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 import static org.springframework.web.servlet.function.ServerResponse.ok;
 
@@ -43,10 +35,10 @@ public class Application {
     @Bean
     public RouterFunction<ServerResponse> endpoints() {
         return RouterFunctions.route()
-                .GET("/hello", req ->
+                .GET("/check-circuit", req ->
                         ok().body(TestCircuit
-                                .supply(() -> "Test Circuit Is: Closed")
-                                .orElse("Test Circuit Is: Open"))
+                                .supply(() -> "closed")
+                                .orElse("open"))
                 )
             .build();
     }

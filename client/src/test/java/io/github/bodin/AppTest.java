@@ -3,9 +3,54 @@
  */
 package io.github.bodin;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.function.Supplier;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest
 class AppTest {
+    @Autowired
+    private MockMvc mvc;
 
+    @MockBean
+    private Application.Circuits.TestCircuit circuit;
+
+    @BeforeEach
+    public void setup(){
+        Supplier<?> supplier = Mockito.any(Supplier.class);
+        Mockito.when(circuit.supply(supplier)).thenCallRealMethod();
+    }
+
+    @Test
+    public void testOpen() throws Exception {
+        Mockito.when(circuit.isOpen()).thenReturn(false);
+
+        this.mvc.perform(get("/check-circuit")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().string("closed"));
+
+    }
+
+    @Test
+    public void testClosed() throws Exception {
+        Mockito.when(circuit.isOpen()).thenReturn(true);
+
+        this.mvc.perform(get("/check-circuit")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().string("open"));
+
+    }
 }
