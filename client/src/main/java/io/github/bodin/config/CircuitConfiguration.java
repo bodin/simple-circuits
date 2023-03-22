@@ -7,15 +7,18 @@ import io.github.bodin.annotation.CircuitDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanClassLoaderAware;
+import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.context.annotation.*;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
+import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.util.ClassUtils;
@@ -27,6 +30,8 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static org.springframework.core.annotation.AnnotationUtils.findAnnotation;
 
 @Configuration
 @Import(CircuitConfiguration.CircuitProxyRegistrar.class)
@@ -59,6 +64,17 @@ public class CircuitConfiguration {
         }
     }
 
+    @Bean
+    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    @Primary
+    public Circuit circuit(InjectionPoint ip, CircuitService service) {
+
+        CircuitDefinition def = findAnnotation(ip.getAnnotatedElement(), CircuitDefinition.class);
+        Circuit result = service.create(def.value());
+        log.info("[CIRCUIT] BEAN {}", def.value());
+        return result;
+    }
+
     @Bean(name = "circuitProxyFactory")
     public CircuitProxyBeanFactory circuitProxyFactory() {
         return new CircuitProxyBeanFactory();
@@ -84,6 +100,8 @@ public class CircuitConfiguration {
         public CircuitProxyRegistrar() {
             classpathScanner = new ClassPathScanner(false);
             classpathScanner.addIncludeFilter(new AnnotationTypeFilter(CircuitDefinition.class));
+            classpathScanner.addIncludeFilter(new AssignableTypeFilter(Circuit.class));
+            classpathScanner.addIncludeFilter(new AssignableTypeFilter(Circuit.class));
         }
 
         @Override
@@ -94,26 +112,28 @@ public class CircuitConfiguration {
         @Override
         public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
             try {
-                for (BeanDefinition beanDefinition : classpathScanner.findCandidateComponents("")) {
+                for (BeanDefinition def : classpathScanner.findCandidateComponents("")) {
 
-                    Class<?> clazz = Class.forName(beanDefinition.getBeanClassName());
+                    Class<?> clazz = Class.forName(def.getBeanClassName());
                     CircuitDefinition c = clazz.getAnnotation(CircuitDefinition.class);
-                    String beanName = ClassUtils.getShortNameAsProperty(clazz);
+                    if(c != null) {
+                        String beanName = ClassUtils.getShortNameAsProperty(clazz);
 
-                    GenericBeanDefinition proxy = new GenericBeanDefinition();
-                    proxy.setBeanClass(clazz);
+                        GenericBeanDefinition proxy = new GenericBeanDefinition();
+                        proxy.setBeanClass(clazz);
 
-                    ConstructorArgumentValues args = new ConstructorArgumentValues();
-                    args.addGenericArgumentValue(classLoader);
-                    args.addGenericArgumentValue(clazz);
-                    proxy.setConstructorArgumentValues(args);
+                        ConstructorArgumentValues args = new ConstructorArgumentValues();
+                        args.addGenericArgumentValue(classLoader);
+                        args.addGenericArgumentValue(clazz);
+                        proxy.setConstructorArgumentValues(args);
 
-                    proxy.setFactoryBeanName("circuitProxyFactory");
-                    proxy.setFactoryMethodName("createCircuitProxy");
+                        proxy.setFactoryBeanName("circuitProxyFactory");
+                        proxy.setFactoryMethodName("createCircuitProxy");
 
-                    log.info("[CIRCUIT] BEAN {} {}", beanName, c.value());
+                        log.info("[CIRCUIT] BEAN {} {}", beanName, c.value());
 
-                    registry.registerBeanDefinition(beanName, proxy);
+                        registry.registerBeanDefinition(beanName, proxy);
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();

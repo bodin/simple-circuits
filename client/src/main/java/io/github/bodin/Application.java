@@ -25,18 +25,27 @@ public class Application {
 
     @Configuration
     public static class Circuits {
-        @CircuitDefinition("test-circuit")
-        interface TestCircuit extends Circuit {}
+        @CircuitDefinition("circuit-1")
+        interface Circuit1 extends Circuit {}
     }
 
     @Autowired @Lazy
-    Circuits.TestCircuit TestCircuit;
+    Circuits.Circuit1 Circuit1;
+
+    @Autowired
+    @CircuitDefinition("circuit-2")
+    Circuit Circuit2;
 
     @Bean
     public RouterFunction<ServerResponse> endpoints() {
         return RouterFunctions.route()
-                .GET("/check-circuit", req ->
-                        ok().body(TestCircuit
+                .GET("/check-circuit-1", req ->
+                        ok().body(Circuit1
+                                .supply(() -> "closed")
+                                .orElse("open"))
+                )
+                .GET("/check-circuit-2", req ->
+                        ok().body(Circuit2
                                 .supply(() -> "closed")
                                 .orElse("open"))
                 )

@@ -24,7 +24,7 @@ class AppTest {
     private MockMvc mvc;
 
     @MockBean
-    private Application.Circuits.TestCircuit circuit;
+    private Application.Circuits.Circuit1 circuit;
 
     @BeforeEach
     public void setup(){
@@ -36,7 +36,7 @@ class AppTest {
     public void testOpen() throws Exception {
         Mockito.when(circuit.isOpen()).thenReturn(false);
 
-        this.mvc.perform(get("/check-circuit")
+        this.mvc.perform(get("/check-circuit-1")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().string("closed"));
@@ -47,7 +47,7 @@ class AppTest {
     public void testClosed() throws Exception {
         Mockito.when(circuit.isOpen()).thenReturn(true);
 
-        this.mvc.perform(get("/check-circuit")
+        this.mvc.perform(get("/check-circuit-1")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().string("open"));
