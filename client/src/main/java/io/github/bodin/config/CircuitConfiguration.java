@@ -17,6 +17,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.context.annotation.*;
 import org.springframework.core.type.AnnotationMetadata;
+import org.springframework.core.type.filter.AbstractTypeHierarchyTraversingFilter;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -101,7 +102,9 @@ public class CircuitConfiguration {
             classpathScanner = new ClassPathScanner(false);
             classpathScanner.addIncludeFilter(new AnnotationTypeFilter(CircuitDefinition.class));
             classpathScanner.addIncludeFilter(new AssignableTypeFilter(Circuit.class));
-            classpathScanner.addIncludeFilter(new AssignableTypeFilter(Circuit.class));
+            classpathScanner.addIncludeFilter(new AbstractTypeHierarchyTraversingFilter(false, false){
+
+            });
         }
 
         @Override
